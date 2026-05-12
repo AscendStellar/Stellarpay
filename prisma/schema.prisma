@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Merchant {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  businessName  String
+  passwordHash  String
+  stellarPublicKey  String?
+  stellarSecretKey  String?   // Encrypted in production
+  webhookUrl    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  checkoutLinks CheckoutLink[]
+  payments      Payment[]
+
+  @@map("merchants")
+}
+
+model CheckoutLink {
+  id          String   @id @default(cuid())
+  slug        String   @unique  // used in /pay/[slug]
+  merchantId  String
+  productName String
+  description String?
+  amount      Float
+  currency    String   @default("USDC")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  merchant    Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  payments    Payment[]
+
+  @@map("checkout_links")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  checkoutLinkId  String
+  merchantId      String
+  amount          Float
+  currency        String
+  status          PaymentStatus @default(PENDING)
+  customerEmail   String?
+  stellarTxHash   String?       // Stellar transaction hash after confirmation
+  stellarMemo     String        // Unique memo to match payment to order
+  payerAddress    String?       // Customer's Stellar wallet address
+  webhookSent     Boolean       @default(false)
+  webhookAttempts Int           @default(0)
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  confirmedAt     DateTime?
+
+  checkoutLink    CheckoutLink  @relation(fields: [checkoutLinkId], references: [id])
+  merchant        Merchant      @relation(fields: [merchantId], references: [id])
+
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  EXPIRED
+}
