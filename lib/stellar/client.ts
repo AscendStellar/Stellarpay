@@ -104,6 +104,27 @@ export async function accountExists(publicKey: string): Promise<boolean> {
 }
 
 /**
+ * Check whether a Stellar account has a trustline for the configured USDC asset.
+ */
+export async function checkUsdcTrustline(publicKey: string): Promise<boolean> {
+  try {
+    const account = await server.loadAccount(publicKey)
+
+    return account.balances.some(
+      balance =>
+        balance.asset_type !== 'native' &&
+        balance.asset_type !== 'liquidity_pool_shares' &&
+        balance.asset_code === 'USDC' &&
+        balance.asset_issuer === USDC_ISSUER
+    )
+  } catch (err: unknown) {
+    if (err instanceof StellarSdk.NotFoundError) return false
+    console.error('[Stellar] USDC trustline check failed:', err)
+    return false
+  }
+}
+
+/**
  * Get the XLM and USDC balance for a Stellar account.
  */
 export async function getAccountBalances(

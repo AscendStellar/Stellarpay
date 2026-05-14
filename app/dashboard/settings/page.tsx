@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { truncateAddress } from '@/lib/utils'
 
 interface Merchant {
@@ -9,20 +9,25 @@ interface Merchant {
 
 export default function SettingsPage() {
   const [merchant, setMerchant] = useState<Merchant | null>(null)
+  const [hasTrustline, setHasTrustline] = useState(true)
   const [walletKey, setWalletKey] = useState('')
   const [webhook, setWebhook] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
 
-  useEffect(() => {
-    fetch('/api/merchants/me')
-      .then(r => r.json())
-      .then(d => {
-        setMerchant(d.merchant)
-        setWalletKey(d.merchant.stellarPublicKey || '')
-        setWebhook(d.merchant.webhookUrl || '')
-      })
+  const loadMerchant = useCallback(async () => {
+    const res = await fetch('/api/merchants/me')
+    const data = await res.json()
+
+    setMerchant(data.merchant)
+    setHasTrustline(Boolean(data.hasTrustline))
+    setWalletKey(data.merchant.stellarPublicKey || '')
+    setWebhook(data.merchant.webhookUrl || '')
   }, [])
+
+  useEffect(() => {
+    loadMerchant()
+  }, [loadMerchant])
 
   async function saveWallet() {
     setSaving(true); setMsg('')
@@ -32,6 +37,7 @@ export default function SettingsPage() {
       body: JSON.stringify({ stellarPublicKey: walletKey }),
     })
     const data = await res.json()
+    if (res.ok) await loadMerchant()
     setSaving(false)
     setMsg(res.ok ? '✓ Wallet address updated' : `Error: ${data.error}`)
   }
@@ -72,6 +78,24 @@ export default function SettingsPage() {
         <p className="text-sm text-slate-500 mb-4">
           Payments are sent directly to this Stellar address. You can use the auto-generated wallet or your own.
         </p>
+        {merchant.stellarPublicKey && !hasTrustline && (
+          <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+            <p className="text-sm font-semibold text-amber-200">
+              ⚠️ Your wallet has no USDC trustline.
+            </p>
+            <p className="mt-1 text-sm text-amber-100/80">
+              Customers will not be able to pay you until you add one.
+            </p>
+            <a
+              href="https://github.com/AscendStellar/Stellarpay/blob/main/docs/trustline.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-block text-sm font-medium text-amber-200 hover:text-amber-100"
+            >
+              Read the trustline setup guide ↗
+            </a>
+          </div>
+        )}
         <div className="space-y-3">
           <div>
             <label className="label">Public Key (G...)</label>
