@@ -189,6 +189,8 @@ Visit [http://localhost:3000](http://localhost:3000)
 
 ## Stellar Integration Explained
 
+For a visual end-to-end view of the payment lifecycle, system components, and Stellar terminology, see [docs/architecture.md](docs/architecture.md).
+
 ### Account Creation
 When a merchant signs up, `generateKeypair()` creates a new Stellar keypair. The public key is stored in the database; the secret key is encrypted with AES-256-GCM before storage (`lib/stellar/encryption.ts`).
 
